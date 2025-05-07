@@ -19,3 +19,6 @@ out/
 # Cursor
 .cursorignore
 .cursorrules
+
+#Certora Prover
+.certora_internal
