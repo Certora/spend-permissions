@@ -5,7 +5,7 @@ using Helper as helper;
 methods {
 	// returns a non deterministic value for each call 
 	function _.isValidSignatureNowAllowSideEffects(address account, bytes32 hash, bytes signature) external => NONDET;
-    function _.execute(address target, uint256 value, bytes data) external => NONDET;
+    function _.execute(address target, uint256 value, bytes data) external => setExecutedCalled() expect void;
 	function getBatchHash(SpendPermissionManager.SpendPermissionBatch memory spendPermissionBatch) internal  returns (bytes32) => NONDET; 
     // An optimistic dispatcher can be used to enforce resolving all unresolved calls to a specific method.
     // Be aware: In case the method C.foo(uint) doesn't exist or the sighash doesn't match, this create vacuity.
@@ -52,18 +52,18 @@ function getHash_CVL(SpendPermissionManager.SpendPermission spendPermission) ret
 // valid state
 // lastUpdatedPeriod in not in the future
 invariant updatePeriod(SpendPermissionManager.SpendPermission spendPermission, env e)
-    getLastUpdatedPeriod(e, spendPermission).start <= getCurrentPeriod(e, spendPermission).start {
+    getLastUpdatedPeriod(e, spendPermission).start <= getCurrentPeriod(e, spendPermission).start  {
 
-        preserved  spend(SpendPermissionManager.SpendPermission spendPermission_processed, uint160 value) with (env e1) {
-            hashIsDeterministic(spendPermission, spendPermission_processed);
-            
-        }
-        preserved spendWithWithdraw(SpendPermissionManager.SpendPermission spendPermission_processed, uint160 value, MagicSpend.WithdrawRequest w)  with (env e2) {
+        preserved spend(SpendPermissionManager.SpendPermission spendPermission_processed, uint160 value) with (env e1) {
             hashIsDeterministic(spendPermission, spendPermission_processed);
         }
-    }
+
+        preserved spendWithWithdraw(SpendPermissionManager.SpendPermission spendPermission_processed, uint160 value, MagicSpend.WithdrawRequest w)  with (env e1) {
+            hashIsDeterministic(spendPermission, spendPermission_processed);
+        }
+    } 
    
-     
+
 
 
 // variable transition 
@@ -77,3 +77,28 @@ rule changeToIsApproved(method f) {
     bool after = isApproved(spendPermission);
     assert after != before => e.msg.sender == spendPermission.account;
 }
+
+// update to getLastUpdatedPeriod implies execute was called 
+
+ghost bool getLastUpdatedPeriod_store;
+ghost bool executeCalled;
+
+function setExecutedCalled()  {
+    executeCalled = true;
+}
+
+hook Sstore _lastUpdatedPeriod[KEY bytes32 hash].spend uint160 newValue (uint160 oldValue) {
+    // Update the sum whenever a balance changes
+    getLastUpdatedPeriod_store = true;
+}
+
+rule getLastUpdatedPeriodImpliesExecute(method f) filtered { f -> !f.isView } {
+    env e;
+    calldataarg args;
+    require !getLastUpdatedPeriod_store && !executeCalled;
+    f(e,args);
+    assert getLastUpdatedPeriod_store => executeCalled;
+}
+
+// More properties:
+// for a given permission spend in PeriodSpend le allowance in the isApproved mapping
