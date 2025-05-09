@@ -22,3 +22,5 @@ out/
 
 #Certora Prover
 .certora_internal
+gambit_out/
+collect.json

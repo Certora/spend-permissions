@@ -1,5 +1,19 @@
 
-// unitTest rules for getHash
+/***
+
+Examples of rules and CVL features for SpendPermissionManager.getHash()
+to run this spec:
+
+certoraRun certora/conf/getHash.conf 
+
+
+
+This file contains unit uest rules for getHash.
+Here we prove properties of getHash function
+which are assumed in the verification of SpendPermissionManager
+
+The rules are in a separate file to avoid any summarization 
+*/ 
 
 
 // same hash for the same structure only 
